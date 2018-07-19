@@ -76,10 +76,12 @@ class AppConfiguration(resourceName: String) {
     // add stream specific properties
     val streamProps = new Properties
     addProps(streamsConfig, streamProps)
-    // add stream application server config
-    streamProps.setProperty(StreamsConfig.APPLICATION_SERVER_CONFIG,
-      s"${config.getString("service.host")}:${config.getInt("service.http.port")}")
-
+    // add default stream application server config if none exists
+    if(streamProps.getProperty(StreamsConfig.APPLICATION_SERVER_CONFIG) == null
+      || streamProps.getProperty(StreamsConfig.APPLICATION_SERVER_CONFIG).isEmpty) {
+      streamProps.setProperty(StreamsConfig.APPLICATION_SERVER_CONFIG,
+        s"${config.getString("service.host")}:${config.getInt("service.http.port")}")
+    }
     if (kafka.hasPath("rocksdb")) {
       CustomRocksDBConfig.setRocksDbConfig(kafka.getConfig("rocksdb"))
       streamProps.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, classOf[CustomRocksDBConfig])
