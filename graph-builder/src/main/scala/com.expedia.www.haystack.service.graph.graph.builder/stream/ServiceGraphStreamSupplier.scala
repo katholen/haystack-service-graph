@@ -17,21 +17,33 @@
  */
 package com.expedia.www.haystack.service.graph.graph.builder.stream
 
+import java.util.concurrent.TimeUnit
 import java.util.function.Supplier
 
 import com.expedia.www.haystack.commons.entities.GraphEdge
-import com.expedia.www.haystack.commons.kstreams.serde.graph.GraphEdgeSerde
+import com.expedia.www.haystack.commons.kstreams.serde.graph.{GraphEdgeKeySerde, GraphEdgeValueSerde}
 import com.expedia.www.haystack.service.graph.graph.builder.config.entities.KafkaConfiguration
 import com.expedia.www.haystack.service.graph.graph.builder.model.{EdgeStats, EdgeStatsSerde}
 import org.apache.kafka.streams.kstream._
 import org.apache.kafka.streams.processor.WallclockTimestampExtractor
-import org.apache.kafka.streams.state.Stores
 import org.apache.kafka.streams.{Consumed, StreamsBuilder, Topology}
 
 class ServiceGraphStreamSupplier(kafkaConfiguration: KafkaConfiguration) extends Supplier[Topology] {
   override def get(): Topology = initialize(new StreamsBuilder)
 
+  private def tumblingWindow(): TimeWindows = {
+    TimeWindows
+      .of(TimeUnit.SECONDS.toMillis(kafkaConfiguration.aggregationWindowSec))
+      .until(TimeUnit.DAYS.toMillis(kafkaConfiguration.aggregationRetentionDays))
+  }
+
   private def initialize(builder: StreamsBuilder): Topology = {
+
+    val initializer: Initializer[EdgeStats] = () => EdgeStats(0, 0, 0)
+
+    val aggregator: Aggregator[GraphEdge, GraphEdge, EdgeStats] = {
+      (_: GraphEdge, v: GraphEdge, stats: EdgeStats) => stats.update(v)
+    }
 
     builder
       //
@@ -41,8 +53,8 @@ class ServiceGraphStreamSupplier(kafkaConfiguration: KafkaConfiguration) extends
       .stream(
         kafkaConfiguration.consumerTopic,
         Consumed.`with`(
-          new GraphEdgeSerde,
-          new GraphEdgeSerde,
+          new GraphEdgeKeySerde,
+          new GraphEdgeValueSerde,
           new WallclockTimestampExtractor,
           kafkaConfiguration.autoOffsetReset
         )
@@ -51,30 +63,22 @@ class ServiceGraphStreamSupplier(kafkaConfiguration: KafkaConfiguration) extends
       // group by key for doing aggregations on edges
       // this will not cause any repartition
       .groupByKey(
-        Serialized.`with`(new GraphEdgeSerde, new GraphEdgeSerde)
+        Serialized.`with`(new GraphEdgeKeySerde, new GraphEdgeValueSerde)
       )
       //
+      // create tumbling windows for edges
+      .windowedBy(tumblingWindow()).aggregate(
+      initializer,
       // calculate stats for edges
       // keep the resulting ktable as materialized view in memory
       // enabled logging to persist ktable changelog topic and replicated to multiple brokers
-      .aggregate[EdgeStats](
-        () => EdgeStats(0, 0),
-        edgeStatsAggregator,
-        Materialized
-          .as(Stores.inMemoryKeyValueStore(kafkaConfiguration.producerTopic))
-          .withKeySerde(new GraphEdgeSerde)
-          .withValueSerde(new EdgeStatsSerde)
-          .withCachingEnabled()
-          .withLoggingEnabled(kafkaConfiguration.producerTopicConfig)
-      )
+      aggregator, Materialized.as(kafkaConfiguration
+        .producerTopic)
+        .withKeySerde(new GraphEdgeKeySerde)
+        .withValueSerde(new EdgeStatsSerde)
+        .withCachingEnabled())
 
     // build stream topology and return
     builder.build()
-  }
-
-  // TODO find out why scala is not able to infer types of direct lambda for aggregator
-  private val edgeStatsAggregator = new Aggregator[GraphEdge, GraphEdge, EdgeStats] {
-    override def apply(key: GraphEdge, value: GraphEdge, aggregate: EdgeStats): EdgeStats =
-      EdgeStats(aggregate.count + 1, System.currentTimeMillis())
   }
 }

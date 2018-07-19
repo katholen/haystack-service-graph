@@ -26,16 +26,17 @@ import org.apache.kafka.streams.Topology.AutoOffsetReset
   * @param streamsConfig valid instance of StreamsConfig
   * @param consumerTopic topic name for incoming graph edges topic
   * @param producerTopic topic name for materialized ktable changelogs
-  * @param producerTopicConfig topic config for materialized ktable changelogs
   * @param autoOffsetReset Offset type for the kstreams app to start with
   * @param closeTimeoutInMs time for closing a kafka topic
   */
 case class KafkaConfiguration(streamsConfig: StreamsConfig,
                               consumerTopic: String,
                               producerTopic: String,
-                              producerTopicConfig: java.util.Map[String, String],
                               autoOffsetReset: AutoOffsetReset,
-                              closeTimeoutInMs: Long) {
+                              closeTimeoutInMs: Long,
+                              aggregationWindowSec: Int,
+                              aggregationRetentionDays: Int
+                             ) {
   require(streamsConfig != null)
   require(StringUtils.isNotBlank(consumerTopic))
   require(StringUtils.isNotBlank(producerTopic))
