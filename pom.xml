@@ -14,9 +14,9 @@
     </modules>
 
     <scm>
-        <connection>scm:git:git://github.com/ExpediaDotCom/haystack-service-graph.git</connection>
-        <developerConnection>scm:git:ssh://github.com/ExpediaDotCom/haystack-service-graph.git</developerConnection>
-        <url>http://github.com/ExpediaDotCom/haystack-service-graph</url>
+        <connection>scm:git:git://github.homeawaycorp.com:SOA-Platform/haystack-service-graph.git</connection>
+        <developerConnection>scm:git:ssh://github.homeawaycorp.com:SOA-Platform/haystack-service-graph.git</developerConnection>
+        <url>http://mvn-repo.wvrgroup.internal/maven</url>
     </scm>
 
     <name>${project.groupId}:${project.artifactId}</name>
@@ -479,13 +479,15 @@
     </build>
 
     <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
         <repository>
-            <id>ossrh</id>
-            <url>http://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <id>homeaway</id>
+            <name>HomeAway Services Nexus Repo</name>
+            <url>http://mvn-repo.wvrgroup.internal:8081/nexus/content/repositories/releases</url>
         </repository>
+        <snapshotRepository>
+            <id>homeaway-snapshots</id>
+            <name>HomeAway Services Snapshot Nexus Repo</name>
+            <url>http://mvn-repo.wvrgroup.internal:8081/nexus/content/repositories/snapshots</url>
+        </snapshotRepository>
     </distributionManagement>
 </project>
