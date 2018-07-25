@@ -77,8 +77,7 @@ class AppConfiguration(resourceName: String) {
     val streamProps = new Properties
     addProps(streamsConfig, streamProps)
     // add default stream application server config if none exists
-    if(streamProps.getProperty(StreamsConfig.APPLICATION_SERVER_CONFIG) == null
-      || streamProps.getProperty(StreamsConfig.APPLICATION_SERVER_CONFIG).isEmpty) {
+    if (StringUtils.isBlank(streamProps.getProperty(StreamsConfig.APPLICATION_SERVER_CONFIG))) {
       streamProps.setProperty(StreamsConfig.APPLICATION_SERVER_CONFIG,
         s"${config.getString("service.host")}:${config.getInt("service.http.port")}")
     }
